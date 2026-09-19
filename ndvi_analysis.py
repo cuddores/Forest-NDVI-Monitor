@@ -31,22 +31,18 @@ from matplotlib.colors import ListedColormap
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
-# ======================================================================
-# НАСТРОЙКИ (пороги эвристические — калибруйте под регион, сезон и породы)
-# ======================================================================
-PIXEL_AREA_HA = 0.01          # запасное значение: Sentinel-2, пиксель 10×10 м = 0.01 га
-SOURCE_LABEL = "Sentinel-2"   # подпись источника в итоговом тексте
+PIXEL_AREA_HA = 0.01         
+SOURCE_LABEL = "Sentinel-2"
 
-# Классы состояния лесного покрова (по одному снимку)
-T_OPEN = 0.30    # ниже — вырубки, гари, открытые участки
-T_YOUNG = 0.50   # ниже — молодняк, кустарник, редины
-T_WEAK = 0.65    # ниже — ослабленный древостой, выше — здоровый сомкнутый лес
-FOREST_MIN = T_YOUNG   # NDVI ≥ этого значения считаем «покрытой лесом» площадью
 
-# Классы динамики (Δ NDVI = поздний − ранний)
-D_STRONG = 0.30    # |Δ| больше — резкое изменение (вырубка / гарь / восстановление)
-D_MODERATE = 0.10  # |Δ| больше — заметное изменение
-RECOVERY_GAIN = 0.20  # рост NDVI на ранее нелесной площади = вероятное лесовосстановление
+T_OPEN = 0.30  
+T_YOUNG = 0.50  
+T_WEAK = 0.65 
+FOREST_MIN = T_YOUNG  
+
+D_STRONG = 0.30    
+D_MODERATE = 0.10  
+RECOVERY_GAIN = 0.20 
 
 # Цвета интерфейса
 BG = "#0b111a"
@@ -60,14 +56,10 @@ ACCENT_HOVER = "#6ee7b7"
 WARN = "#f59e0b"
 RED = "#f87171"
 
-# Цвета классов (порядок совпадает с get_state_classes / get_change_classes)
 STATE_COLORS = ["#3b82f6", "#b45309", "#86efac", "#f59e0b", "#15803d"]
 CHANGE_COLORS = ["#dc2626", "#f97316", "#475569", "#86efac", "#15803d"]
 
-
-# ======================================================================
 # ЯДРО: загрузка и анализ данных (без интерфейса)
-# ======================================================================
 def load_ndvi(path):
     """Читает первый канал GeoTIFF. При проблеме бросает ValueError с понятным текстом."""
     if not os.path.isfile(path):
@@ -223,8 +215,8 @@ def analyze_change(cur, prev):
         raise ValueError("Снимки не пересекаются: в общей области нет валидных пикселей.")
 
     px_ha = cur["px_ha"]
-    loss = (prev_ndvi >= FOREST_MIN) & (d < -D_STRONG)         # был лес → резкое падение
-    recovery = (prev_ndvi < FOREST_MIN) & (d > RECOVERY_GAIN)  # не лес → заметный рост
+    loss = (prev_ndvi >= FOREST_MIN) & (d < -D_STRONG)  
+    recovery = (prev_ndvi < FOREST_MIN) & (d > RECOVERY_GAIN)
     return {
         "prev_name": prev["name"],
         "d": d,
@@ -266,10 +258,7 @@ def build_summary(r, ch=None):
     )
     return text
 
-
-# ======================================================================
 # КАРТЫ (matplotlib в тёмной теме)
-# ======================================================================
 def style_axes(ax, title):
     ax.set_facecolor(CARD)
     ax.set_title(title, color=TEXT, fontsize=11, pad=10)
@@ -330,7 +319,7 @@ def draw_change_map(fig, d):
                     "Классы изменений (вырубки, гари, восстановление)")
 
 
-_open_windows = []  # держим ссылки, иначе окна удалит сборщик мусора
+_open_windows = []
 
 
 class MapWindow(QMainWindow):
@@ -361,10 +350,7 @@ class MapWindow(QMainWindow):
             _open_windows.remove(self)
         super().closeEvent(event)
 
-
-# ======================================================================
 # ВИДЖЕТЫ-КАРТОЧКИ
-# ======================================================================
 def make_card(title=None):
     card = QFrame()
     card.setObjectName("card")
@@ -500,10 +486,7 @@ class MapCard(QFrame):
     def open_window(self):
         MapWindow(f"{self._title} — {self._file}", self._draw_fn, self._data).show()
 
-
-# ======================================================================
 # СТРАНИЦА РЕЗУЛЬТАТОВ
-# ======================================================================
 def kv_grid(rows):
     grid = QGridLayout()
     grid.setHorizontalSpacing(14)
@@ -671,10 +654,7 @@ class ResultsPage(QWidget):
         lay.addWidget(btn, alignment=Qt.AlignmentFlag.AlignRight)
         return card
 
-
-# ======================================================================
 # ГЛАВНОЕ ОКНО
-# ======================================================================
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -683,9 +663,9 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1200, 720)
         self.setAcceptDrops(True)
         self._last_dir = ""
-        self._current = None   # результат анализа текущего (позднего) снимка
-        self._change = None    # результат сравнения с ранним снимком
-        self._results = None   # виджет страницы результатов
+        self._current = None
+        self._change = None
+        self._results = None
 
         central = QWidget()
         root = QVBoxLayout(central)
@@ -774,7 +754,7 @@ class MainWindow(QMainWindow):
             path, _ = QFileDialog.getOpenFileName(
                 self, dialog_title, self._last_dir, "GeoTIFF (*.tif *.tiff)"
             )
-            if not path:  # «Отмена»
+            if not path:
                 return
             if self._try(lambda: action(path)) != "retry":
                 return
@@ -802,7 +782,7 @@ class MainWindow(QMainWindow):
 
     def _load_previous(self, path):
         prev = analyze(path)
-        change = analyze_change(self._current, prev)  # может бросить ValueError
+        change = analyze_change(self._current, prev)
         self._change = change
         self._last_dir = os.path.dirname(path)
         self.show_result()
@@ -847,10 +827,7 @@ class MainWindow(QMainWindow):
         if self._try(lambda: self._load_current(path)) == "retry":
             self.choose_file()
 
-
-# ======================================================================
 # ТЕМА И ЗАПУСК
-# ======================================================================
 STYLESHEET = """
 QMainWindow { background: @BG@; }
 QLabel { color: @TEXT@; background: transparent; }
